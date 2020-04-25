@@ -2,13 +2,19 @@ import React, { useEffect, useState } from "react";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 import { useParams } from "react-router-dom";
 
-const SOCKET_URL = "ws://localhost:8080/ws";
+const SOCKET_URL = 'wss://echo.websocket.org';
 const CONNECTION_STATUSES = {
   [ReadyState.CONNECTING]: "Connecting",
   [ReadyState.OPEN]: "Open",
   [ReadyState.CLOSING]: "Closing",
   [ReadyState.CLOSED]: "Closed",
 };
+
+const calculateBalance = (message: string) =>
+  (prevBalance: (number | null)) => {
+    let balance = prevBalance ?? 0;
+    return balance + Number(message);
+  };
 
 const BankAccount = () => {
   const { account_id } = useParams();
@@ -33,30 +39,25 @@ const BankAccount = () => {
           2
         )} from ${currentWebsocketUrl}`
       );
+
+      setBalance(calculateBalance(lastMessage.data))
     }
-  }, [lastMessage]);
+  }, [lastMessage, getWebSocket, setBalance]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const response = await fetch(
-        `http://localhost:8080/account/${account_id}/balance`
-      );
-      const data = await response.json(); // {"balance": 42}
-      setBalance(data.balance);
-    };
-    fetchData();
-  }, [lastMessage]);
+    if (connectionStatus === 'Open') {
+      console.log('socket opened');
+
+      return () => console.log('closing');
+    }
+  }, [connectionStatus, sendMessage]);
 
   // @ts-ignore
   const handleDeposit = async (event) => {
-    const response = await fetch(
-      `http://localhost:8080/account/${account_id}/deposit/${deposit}`,
-      {
-        method: "POST",
-      }
-    );
-    await response.json();
+
     event.preventDefault();
+
+    sendMessage(String(deposit));
   };
 
   console.log("re-render");
